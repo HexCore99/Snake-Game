@@ -64,7 +64,7 @@ Or run the executable directly:
 
 ## How to Play
 
-- The snake starts in the center of the screen moving to the right
+- The snake starts in the center of the screen and begins moving to the right automatically
 - Red rectangles appear randomly on the screen - these are the food
 - Guide the snake to eat the food to grow longer
 - Avoid hitting the boundaries of the screen
