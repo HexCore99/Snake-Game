@@ -10,6 +10,7 @@ using namespace std;
 #define SCREEN_HEIGHT 800
 #define RECT_WIDTH 30
 #define RECT_HEIGHT 30
+#define FONT_SIZE 30
 
 bool isPointExists = false;
 Rectangle point;
@@ -31,139 +32,62 @@ deque<Rectangle> rects = {
 };
 
 // Definition
-void handleKeyPressed(char key);
 void renderSnake();
-void moveUp();
-void moveLeft();
-void moveRight();
-void moveBottom();
-bool hasNeighbour(char pressedKey);
-bool hitsBoundary(char pressedKey);
+bool hitsBoundary();
 void randomPoints();
-void increaseSize();
+void showScore();
+void move();
+bool hitSelf(
+    const Rectangle &newHead, bool willGrow);
+
+Vector2 dir = {1,
+               0};
+Vector2 nextDir = {1, 0};
+
+float moveTimer = 0.0f;
+float moveInterval = 0.10f;
+unsigned int score = 0;
 
 int main()
 {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Don't be a Snake");
     SetTargetFPS(60);
 
-    float speed = 200.0f;
-    Vector2 dir = {1, 0};
-
+    randomPoints();
     while (!WindowShouldClose())
     {
-        int k = GetKeyPressed();
 
-        if (IsKeyDown(KEY_W))
-            dir = {0, -1};
-        if (IsKeyDown(KEY_S))
-            dir = {0, 1};
+        if (IsKeyPressed(KEY_W) && dir.y != 1)
+            nextDir = {0, -1};
+        if (IsKeyPressed(KEY_S) && dir.y != -1)
+            nextDir = {0, 1};
+        if (IsKeyPressed(KEY_A) && dir.x != 1)
+            nextDir = {-1, 0};
+        if (IsKeyPressed(KEY_D) && dir.x != -1)
+            nextDir = {1, 0};
 
-        if (IsKeyDown(KEY_A))
-            dir = {-1, 0};
-        if (IsKeyDown(KEY_D))
-            dir = {1, 0};
-        float dt = GetFrameTime();
-        rects[0].x += dir.x * speed * dt;
-        rects[0].y += dir.y * speed * dt;
-
-        for (int i = 1; i < rects.size(); i++)
+        moveTimer += GetFrameTime();
+        if (moveTimer >= moveInterval)
         {
-            Vector2 prev = {rects[i - 1].x, rects[i - 1].y};
-            Vector2 curr = {rects[i].x, rects[i].y};
-            Vector2 delta = {prev.x - curr.x, prev.y - curr.y};
-            float dist = sqrtf(delta.x * delta.x + delta.y * delta.y);
-
-            if (dist > RECT_WIDTH)
+            moveTimer = 0.0f;
+            if (!hitsBoundary())
             {
-                float t = (dist - RECT_WIDTH) / dist;
-                rects[i].x += delta.x * t;
-                rects[i].y += delta.y * t;
+
+                dir = nextDir;
+                move();
             }
         }
-
-        handleKeyPressed(key);
         BeginDrawing();
         ClearBackground(BLACK);
+        showScore();
         renderSnake();
-        if (!isPointExists)
-        {
-            randomPoints();
-            DrawRectangleRec(point, RED);
-            isPointExists = true;
-        }
-        else
-        {
-            DrawRectangleRec(point, RED);
-        }
-
-        if (CheckCollisionRecs(rects[0], point))
-        {
-            increaseSize();
-            isPointExists = false;
-        }
+        DrawRectangleRec(point, RED);
 
         EndDrawing();
     }
 
     CloseWindow();
     return 0;
-}
-
-void handleKeyPressed(char key)
-{
-    switch (key)
-    {
-    case 'W':
-        if (hitsBoundary(key) || hasNeighbour(key))
-            return;
-        moveUp();
-        break;
-
-    case 'A':
-        if (hitsBoundary(key) || hasNeighbour(key))
-            return;
-        moveLeft();
-        break;
-
-    case 'S':
-        if (hitsBoundary(key) || hasNeighbour(key))
-            return;
-        moveBottom();
-        break;
-    case 'D':
-        if (hitsBoundary(key) || hasNeighbour(key))
-            return;
-        moveRight();
-        break;
-
-    default:
-        break;
-    }
-    // if (IsKeyPressed(KEY_W))
-    // {
-    //     if (hitsBoundary('W') || hasNeighbour('W'))
-    //         return;
-    //     moveUp();
-    // }
-    // if (IsKeyPressed(KEY_A))
-    // {
-    //     if (hitsBoundary('A') || hasNeighbour('A'))
-    //         return;
-    //     moveLeft();
-    // }
-    // if (IsKeyPressed(KEY_S))
-    // {
-    //     if (hitsBoundary('S') || hasNeighbour('S'))
-    //         return;
-    //     moveBottom();
-    // }
-    // if (IsKeyPressed(KEY_D))
-    // {
-    //     if (hitsBoundary('D') || hasNeighbour('D'))
-    //         return;
-    //     moveRight();
-    // }
 }
 
 void renderSnake()
@@ -174,145 +98,16 @@ void renderSnake()
         DrawRectangleRec(rects[i], BROWN);
     }
 }
-void moveUp()
-{
-    Rectangle tempRect = rects[0];
-    rects[0].y -= vy;
-
-    for (int i = 1; i < rects.size(); i++)
-    {
-        Rectangle temp2 = tempRect;
-        tempRect = rects[i];
-        rects[i] = temp2;
-    }
-}
-
-void moveLeft()
+bool hitsBoundary()
 {
 
-    Rectangle tempRect = rects[0];
-    rects[0].x -= vx;
-
-    for (int i = 1; i < rects.size(); i++)
+    if (rects[0].y < 1 || rects[0].x < 0 ||
+        rects[0].x >= SCREEN_WIDTH - RECT_WIDTH ||
+        rects[0].y >= SCREEN_HEIGHT - RECT_HEIGHT)
     {
-        Rectangle temp2 = tempRect;
-        tempRect = rects[i];
-        rects[i] = temp2;
+        return true;
     }
-}
 
-void moveRight()
-{
-    Rectangle tempRect = rects[0];
-    rects[0].x += vx;
-
-    for (int i = 1; i < rects.size(); i++)
-    {
-        Rectangle temp2 = tempRect;
-        tempRect = rects[i];
-        rects[i] = temp2;
-    }
-}
-
-void moveBottom()
-{
-    Rectangle tempRect = rects[0];
-    rects[0].y += vy;
-
-    for (int i = 1; i < rects.size(); i++)
-    {
-        Rectangle temp2 = tempRect;
-        tempRect = rects[i];
-        rects[i] = temp2;
-    }
-}
-
-bool hitsBoundary(char pressedKey)
-{
-
-    switch (pressedKey)
-    {
-    case 'W':
-
-        if (rects[0].y < 1)
-            return true;
-        // cout << "Top Boundary Hit\n";
-        break;
-    case 'A':
-
-        if (rects[0].x < 0)
-            return true;
-        // cout << "Left Boundary Hit\n";
-        break;
-    case 'D':
-        if (rects[0].x >= SCREEN_WIDTH - RECT_WIDTH)
-            return true;
-        // cout << "Right Boundary Hit\n";
-        break;
-    case 'S':
-        if (rects[0].y >= SCREEN_HEIGHT - RECT_HEIGHT)
-            return true;
-        // cout << "Bottom Boundary Hit\n";
-        break;
-
-    default:
-        break;
-    }
-    return false;
-}
-
-bool hasNeighbour(char pressedKey)
-{
-    switch (pressedKey)
-    {
-    case 'W':
-
-        for (int i = 0; i < rects.size(); i++)
-        {
-            if (rects[i].x == rects[0].x && rects[i].y == rects[0].y - RECT_HEIGHT)
-            {
-                cout << "top rectangle exists\n";
-                return true;
-            }
-        }
-        break;
-    case 'A':
-
-        for (int i = 0; i < rects.size(); i++)
-        {
-            if (rects[i].x == rects[0].x - RECT_WIDTH && rects[i].y == rects[0].y)
-            {
-                cout << "Left rectangle exists\n";
-                return true;
-            }
-        }
-        break;
-    case 'D':
-
-        for (int i = 0; i < rects.size(); i++)
-        {
-            if (rects[i].x == rects[0].x + RECT_WIDTH && rects[i].y == rects[0].y)
-            {
-                cout << "Right rectangle exists\n";
-                return true;
-            }
-        }
-
-        break;
-    case 'S':
-        for (int i = 0; i < rects.size(); i++)
-        {
-            if (rects[i].x == rects[0].x && rects[i].y == rects[0].y + RECT_HEIGHT)
-            {
-                cout << "Bottom rectangle exists\n";
-                return true;
-            }
-        }
-        break;
-
-    default:
-        break;
-    }
     return false;
 }
 
@@ -323,17 +118,54 @@ void randomPoints()
     point = {rect_x, rect_y, RECT_WIDTH, RECT_HEIGHT};
 }
 
-void increaseSize()
+void move()
 {
-    Rectangle tail = rects.back();
-    Rectangle beforeTail = rects[rects.size() - 2];
-    float dx = tail.x - beforeTail.x;
-    float dy = tail.y - beforeTail.y;
+    Rectangle newHead = rects.front();
+    newHead.x += dir.x * RECT_WIDTH;
+    newHead.y += dir.y * RECT_HEIGHT;
 
-    Rectangle newTail = {
-        tail.x + dx,
-        tail.y + dy,
-        tail.width,
-        tail.height};
-    rects.push_back(newTail);
+    bool willGrow = CheckCollisionRecs(newHead, point);
+
+    if (hitSelf(newHead, willGrow))
+    {
+        return;
+    }
+
+    rects.push_front(newHead);
+
+    if (!willGrow)
+        rects.pop_back();
+    else
+    {
+        score += 10;
+        randomPoints();
+    }
 }
+
+void showScore()
+{
+    std::string scoreText = "Score: " + std::to_string(score);
+    int textW = MeasureText(scoreText.c_str(), FONT_SIZE);
+    DrawText(scoreText.c_str(), SCREEN_WIDTH - textW - 10, 10, FONT_SIZE, WHITE);
+}
+
+bool hitSelf(const Rectangle &newHead, bool willGrow)
+{
+    int limit = rects.size();
+    if (limit > 0 && !willGrow)
+        limit -= 1;
+    for (int i = 0; i < limit; i++)
+    {
+        if (CheckCollisionRecs(newHead, rects[i]))
+            return true;
+    }
+    return false;
+}
+
+/*
+TODO:
+    1. Snake & Points Overlaps
+    2.Snake & Points Overlaps with Score
+    3.Pause/End/Start Screen.
+
+*/
