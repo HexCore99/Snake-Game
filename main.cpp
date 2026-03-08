@@ -3,6 +3,7 @@
 #include <deque>
 #include <string>
 #include <math.h>
+#include <vector>
 #include "raylib.h"
 using namespace std;
 
@@ -12,14 +13,31 @@ using namespace std;
 #define RECT_HEIGHT 30
 #define FONT_SIZE 30
 
+enum class State
+{
+    START,
+    PAUSE,
+    RESUME,
+    NEWGAME,
+    EXIT,
+    GAMEOVER,
+};
+
+State state = State::START;
 bool isPointExists = false;
 Rectangle point;
 float vx = 5;
 float vy = 5;
 char key;
 
-Vector4 pos = {SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, RECT_WIDTH, RECT_HEIGHT};
+Vector2 dir = {1, 0};
+Vector2 nextDir = {1, 0};
 
+float moveTimer = 0.0f;
+float moveInterval = 0.10f;
+unsigned int score = 0;
+
+Vector4 pos = {SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, RECT_WIDTH, RECT_HEIGHT};
 deque<Rectangle> rects = {
     {pos.x, pos.y, pos.z, pos.w},
     {pos.x - pos.z, pos.y, pos.z, pos.w},
@@ -30,27 +48,55 @@ deque<Rectangle> rects = {
     {pos.x - 6 * pos.z, pos.y, pos.z, pos.w},
     {pos.x - 7 * pos.z, pos.y, pos.z, pos.w},
 };
+deque<Rectangle> initialRects = rects;
 
-// Definition
+struct Button
+{
+    Rectangle bounds;
+    std::string label;
+    State targetState;
+    int fontSize = FONT_SIZE;
+    Color fillColor = WHITE;
+    Color hoverCOlor = LIGHTGRAY;
+    Color textColor = BLACK;
+
+    bool isHovered() const
+    {
+        return CheckCollisionPointRec(GetMousePosition(), bounds); // why CheckCollisionPointRec not CheckCollisionRecs?
+    }
+
+    bool isClicked() const
+    {
+        return isHovered() && IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+    }
+
+    void render() const
+    {
+        Color currentColor = isHovered() ? hoverCOlor : fillColor; // what's the purpose of putting const after the function name?
+        DrawRectangleRec(bounds, currentColor);
+
+        int textWidth = MeasureText(label.c_str(), fontSize);
+        float textX = bounds.x + (bounds.width - textWidth) / 2.0f;
+        float textY = bounds.y + (bounds.height - fontSize) / 2.0f;
+        DrawText(label.c_str(), (int)textX, (int)textY, fontSize, textColor);
+    }
+};
+
+// Declarations
 void renderSnake();
 bool hitsBoundary();
 void randomPoints();
 void showScore();
 void move();
-bool hitSelf(
-    const Rectangle &newHead, bool willGrow);
-
-Vector2 dir = {1,
-               0};
-Vector2 nextDir = {1, 0};
-
-float moveTimer = 0.0f;
-float moveInterval = 0.10f;
-unsigned int score = 0;
+bool hitSelf(const Rectangle &newHead, bool willGrow);
+void drawBoardBackground();
+void drawMenu();
+void reset();
 
 int main()
 {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Don't be a Snake");
+    SetExitKey(KEY_NULL);
     SetTargetFPS(60);
 
     randomPoints();
@@ -65,37 +111,73 @@ int main()
             nextDir = {-1, 0};
         if (IsKeyPressed(KEY_D) && dir.x != -1)
             nextDir = {1, 0};
-
-        moveTimer += GetFrameTime();
-        if (moveTimer >= moveInterval)
+        if (IsKeyPressed(KEY_ESCAPE))
         {
-            moveTimer = 0.0f;
-            if (!hitsBoundary())
+            //~
+            if (state == State::RESUME)
             {
+                state = State::PAUSE;
+            }
 
-                dir = nextDir;
-                move();
+            else if (state == State::PAUSE)
+            {
+                state = State::RESUME;
             }
         }
+
+        if (state == State::RESUME)
+        {
+            moveTimer += GetFrameTime();
+            if (moveTimer >= moveInterval)
+            {
+                moveTimer = 0.0f;
+                if (!hitsBoundary())
+                {
+                    dir = nextDir;
+                    move();
+                }
+            }
+        }
+
         BeginDrawing();
-        ClearBackground(BLACK);
-        showScore();
-        renderSnake();
-        DrawRectangleRec(point, RED);
+
+        if (state == State::PAUSE || state == State::GAMEOVER || state == State::START)
+        {
+            std::cout << static_cast<int>(state) << '\n';
+
+            drawMenu();
+        }
+        else
+        {
+            drawBoardBackground();
+            showScore();
+            renderSnake();
+            DrawRectangleRec(point, RED);
+        }
 
         EndDrawing();
+        if (state == State::EXIT)
+            break;
     }
 
     CloseWindow();
     return 0;
 }
-
+// Definitions
 void renderSnake()
 {
-    DrawRectangleRec(rects[0], WHITE);
+    Color snakeHead = {92, 108, 63, 255};
+    Color snakeBodyA = {117, 132, 76, 255};
+    Color snakeBodyB = {103, 118, 68, 255};
+    Color snakeOutline = {42, 50, 29, 255};
+
+    DrawRectangleRec(rects[0], snakeHead);
+    DrawRectangleLinesEx(rects[0], 2, snakeOutline);
     for (int i = 1; i < rects.size(); i++)
     {
-        DrawRectangleRec(rects[i], BROWN);
+        Color bodyColor = (i % 2) == 0 ? snakeBodyA : snakeBodyB;
+        DrawRectangleRec(rects[i], bodyColor);
+        DrawRectangleLinesEx(rects[i], 1.5f, snakeOutline);
     }
 }
 bool hitsBoundary()
@@ -105,6 +187,7 @@ bool hitsBoundary()
         rects[0].x >= SCREEN_WIDTH - RECT_WIDTH ||
         rects[0].y >= SCREEN_HEIGHT - RECT_HEIGHT)
     {
+        state = State::GAMEOVER;
         return true;
     }
 
@@ -128,6 +211,7 @@ void move()
 
     if (hitSelf(newHead, willGrow))
     {
+        state = State::GAMEOVER;
         return;
     }
 
@@ -146,6 +230,7 @@ void showScore()
 {
     std::string scoreText = "Score: " + std::to_string(score);
     int textW = MeasureText(scoreText.c_str(), FONT_SIZE);
+    //~
     DrawText(scoreText.c_str(), SCREEN_WIDTH - textW - 10, 10, FONT_SIZE, WHITE);
 }
 
@@ -160,6 +245,111 @@ bool hitSelf(const Rectangle &newHead, bool willGrow)
             return true;
     }
     return false;
+}
+
+void drawBoardBackground()
+{
+    Color darkGrass = {18, 48, 24, 255};
+    Color lightGrass = {28, 68, 34, 255};
+    Color gridLine = {40, 90, 46, 120};
+    ClearBackground(darkGrass);
+    for (int y = 0; y < SCREEN_HEIGHT; y += RECT_HEIGHT)
+    {
+        for (int x = 0; x < SCREEN_WIDTH; x += RECT_WIDTH)
+        {
+            bool alternate = ((x / RECT_WIDTH) + (y / RECT_HEIGHT)) % 2 == 0;
+            DrawRectangle(x, y, RECT_WIDTH, RECT_HEIGHT, alternate ? darkGrass : lightGrass);
+            DrawRectangleLines(x, y, RECT_WIDTH, RECT_HEIGHT, gridLine);
+        }
+    }
+}
+
+void drawMenu()
+{
+    const float widthRatio = 0.35;
+    const float heightRatio = 0.60;
+    // Draw Menu Container
+    float menuWidth = SCREEN_WIDTH * widthRatio;
+    float menuHeight = SCREEN_HEIGHT * heightRatio;
+    float menuX = (SCREEN_WIDTH - menuWidth) / 2.0f;
+    float menuY = (SCREEN_HEIGHT - menuHeight) / 2.0f;
+
+    Rectangle menuContainer = {
+        menuX,
+        menuY,
+        menuWidth,
+        menuHeight,
+    };
+
+    ClearBackground(BLACK);
+    DrawRectangleRec(menuContainer, PINK);
+
+    // Init Buttons
+    const float buttondWidth = menuWidth - 120.0f;
+    const float buttondHeight = 60.0f;
+    const float buttonGap = 18.0f;
+    const float buttonX = menuX + (menuWidth - buttondWidth) / 2.0f;
+    const float firstButtonY = menuY + 90.0f;
+
+    std::vector<Button> buttons = {
+        {{buttonX, firstButtonY + 0 * (buttondHeight + buttonGap), buttondWidth, buttondHeight}, "RESUME", State::RESUME},
+        {{buttonX, firstButtonY + 0 * (buttondHeight + buttonGap), buttondWidth, buttondHeight}, "START", State::START},
+
+        {{buttonX, firstButtonY + 1 * (buttondHeight + buttonGap), buttondWidth, buttondHeight}, "NEWGAME", State::NEWGAME},
+
+        {{buttonX, firstButtonY + 2 * (buttondHeight + buttonGap), buttondWidth, buttondHeight}, "EXIT", State::EXIT},
+    };
+
+    // render buttons
+    for (const Button &button : buttons)
+    {
+        if ((state == State::GAMEOVER && button.label == "RESUME") || (state == State::START && button.label == "RESUME") || (state != State::START && button.label == "START"))
+
+        {
+            continue;
+        }
+        button.render();
+    }
+
+    // configure Actions
+    for (const Button &button : buttons)
+    {
+        if (!button.isClicked())
+        {
+            continue;
+        }
+
+        switch (button.targetState)
+        {
+        case State::START:
+            state = State::RESUME;
+            break;
+        case State::RESUME:
+            state = State::RESUME;
+            break;
+        case State::NEWGAME:
+            reset();
+            break;
+        case State::EXIT:
+            state = State::EXIT;
+            break;
+
+        default:
+            break;
+        }
+    }
+}
+void reset()
+{
+    rects = initialRects;
+    score = 0;
+    dir = {1, 0};
+    nextDir = {1, 0};
+
+    moveTimer = 0.0f;
+    moveInterval = 0.10f;
+    score = 0;
+    state = State::RESUME;
 }
 
 /*

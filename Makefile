@@ -1,19 +1,26 @@
-CXX := C:/msys64/ucrt64/bin/g++.exe
+MSYS2_UCRT64 := C:/msys64/ucrt64
+CXX := $(MSYS2_UCRT64)/bin/g++.exe
 TARGET := main.exe
 SRC := main.cpp
 
-CXXFLAGS := -Wall -Wextra
-LDFLAGS := -lraylib -lopengl32 -lgdi32 -lwinmm
+CPPFLAGS := -I$(MSYS2_UCRT64)/include
+CXXFLAGS := -Wall -Wextra -std=c++17
+LDFLAGS := -L$(MSYS2_UCRT64)/lib
+LDLIBS := -lraylib -lopengl32 -lgdi32 -lwinmm
 
-.PHONY: build run clean
+.PHONY: all build run clean rebuild
 
-build:$(TARGET)
+all: build
 
-$(TARGET):$(SRC)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SRC) $(LDFLAGS)
+build: $(TARGET)
 
-run:build
+$(TARGET): $(SRC)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(LDLIBS)
+
+run: $(TARGET)
 	.\$(TARGET)
 
 clean:
-	-del /Q $(TARGET) 2>NUL
+	if exist $(TARGET) del /Q $(TARGET)
+
+rebuild: clean build
