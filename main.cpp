@@ -23,6 +23,7 @@ enum class State
     GAMEOVER,
 };
 
+// global vars
 State state = State::START;
 bool isPointExists = false;
 Rectangle point;
@@ -30,14 +31,18 @@ float vx = 5;
 float vy = 5;
 char key;
 
+Sound hoverSound;
+Sound clickSound;
+Sound gameOver;
+std::string lastHovered = "";
+
 Vector2 dir = {1, 0};
 Vector2 nextDir = {1, 0};
-
 float moveTimer = 0.0f;
 float moveInterval = 0.10f;
 unsigned int score = 0;
-
 Vector4 pos = {SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, RECT_WIDTH, RECT_HEIGHT};
+
 deque<Rectangle> rects = {
     {pos.x, pos.y, pos.z, pos.w},
     {pos.x - pos.z, pos.y, pos.z, pos.w},
@@ -96,6 +101,11 @@ void reset();
 int main()
 {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Don't be a Snake");
+    InitAudioDevice();
+    hoverSound = LoadSound("assets/hover2.mp3");
+    clickSound = LoadSound("assets/hover4.mp3");
+    gameOver = LoadSound("assets/gameOverKid.mp3");
+
     SetExitKey(KEY_NULL);
     SetTargetFPS(60);
 
@@ -113,7 +123,6 @@ int main()
             nextDir = {1, 0};
         if (IsKeyPressed(KEY_ESCAPE))
         {
-            //~
             if (state == State::RESUME)
             {
                 state = State::PAUSE;
@@ -143,8 +152,6 @@ int main()
 
         if (state == State::PAUSE || state == State::GAMEOVER || state == State::START)
         {
-            std::cout << static_cast<int>(state) << '\n';
-
             drawMenu();
         }
         else
@@ -156,10 +163,12 @@ int main()
         }
 
         EndDrawing();
-        if (state == State::EXIT)
+        if (state == State::EXIT && !IsSoundPlaying(clickSound))
             break;
     }
 
+    UnloadSound(hoverSound);
+    UnloadSound(clickSound);
     CloseWindow();
     return 0;
 }
@@ -188,6 +197,7 @@ bool hitsBoundary()
         rects[0].y >= SCREEN_HEIGHT - RECT_HEIGHT)
     {
         state = State::GAMEOVER;
+        PlaySound(gameOver);
         return true;
     }
 
@@ -212,6 +222,7 @@ void move()
     if (hitSelf(newHead, willGrow))
     {
         state = State::GAMEOVER;
+        PlaySound(gameOver);
         return;
     }
 
@@ -281,8 +292,9 @@ void drawMenu()
         menuHeight,
     };
 
-    ClearBackground(BLACK);
-    DrawRectangleRec(menuContainer, PINK);
+    ClearBackground({12, 28, 18, 255});
+    // Color menuPanelColor = {58, 74, 46, 255};
+    // DrawRectangleRec(menuContainer, menuPanelColor);
 
     // Init Buttons
     const float buttondWidth = menuWidth - 120.0f;
@@ -300,6 +312,7 @@ void drawMenu()
         {{buttonX, firstButtonY + 2 * (buttondHeight + buttonGap), buttondWidth, buttondHeight}, "EXIT", State::EXIT},
     };
 
+    std::string hoveredNow = "";
     // render buttons
     for (const Button &button : buttons)
     {
@@ -309,7 +322,17 @@ void drawMenu()
             continue;
         }
         button.render();
+        if (button.isHovered())
+        {
+            hoveredNow = button.label;
+        }
     }
+
+    if (!hoveredNow.empty() && hoveredNow != lastHovered)
+    {
+        PlaySound(hoverSound);
+    }
+    lastHovered = hoveredNow;
 
     // configure Actions
     for (const Button &button : buttons)
@@ -318,7 +341,8 @@ void drawMenu()
         {
             continue;
         }
-
+        lastHovered = "";
+        PlaySound(clickSound);
         switch (button.targetState)
         {
         case State::START:
