@@ -37,8 +37,8 @@ char key;
 
 Sound hoverSound;
 Sound clickSound;
-Sound gameOver;
-Sound eat;
+Sound gameOverSound;
+Sound eatSound;
 std::string lastHovered = "";
 
 Vector2 dir = {1, 0};
@@ -106,8 +106,8 @@ int main()
     InitAudioDevice();
     hoverSound = LoadSound("assets/hover2.mp3");
     clickSound = LoadSound("assets/hover4.mp3");
-    gameOver = LoadSound("assets/gameOverKid.mp3");
-    eat = LoadSound("assets/eating.wav");
+    gameOverSound = LoadSound("assets/gameOverKid.mp3");
+    eatSound = LoadSound("assets/eating.wav");
 
     SetExitKey(KEY_NULL);
     SetTargetFPS(60);
@@ -172,6 +172,7 @@ int main()
 
     UnloadSound(hoverSound);
     UnloadSound(clickSound);
+    UnloadSound(eatSound);
     CloseWindow();
     return 0;
 }
@@ -185,7 +186,7 @@ void renderSnake()
 
     DrawRectangleRec(snakeRects[0], snakeHead);
     DrawRectangleLinesEx(snakeRects[0], 2, snakeOutline);
-    for (int i = 1; i < snakeRects.size(); i++)
+    for (unsigned int i = 1; i < snakeRects.size(); i++)
     {
         Color bodyColor = (i % 2) == 0 ? snakeBodyA : snakeBodyB;
         DrawRectangleRec(snakeRects[i], bodyColor);
@@ -200,7 +201,7 @@ bool hitsBoundary()
         snakeRects[0].y > SCREEN_HEIGHT - RECT_HEIGHT)
     {
         state = State::GAMEOVER;
-        PlaySound(gameOver);
+        PlaySound(gameOverSound);
         return true;
     }
 
@@ -240,7 +241,7 @@ void move()
     if (hitSelf(newHead, willGrow))
     {
         state = State::GAMEOVER;
-        PlaySound(gameOver);
+        PlaySound(gameOverSound);
         return;
     }
 
@@ -250,7 +251,7 @@ void move()
         snakeRects.pop_back();
     else
     {
-        PlaySound(eat);
+        PlaySound(eatSound);
         score += 10;
         randomPoints();
     }
@@ -260,7 +261,6 @@ void showScore()
 {
     std::string scoreText = "Score: " + std::to_string(score);
     int textW = MeasureText(scoreText.c_str(), FONT_SIZE);
-    //~
     DrawText(scoreText.c_str(), SCREEN_WIDTH - textW - 10, 10, FONT_SIZE, WHITE);
 }
 
@@ -305,6 +305,8 @@ void drawMenu()
     float menuX = (SCREEN_WIDTH - menuWidth) / 2.0f;
     float menuY = (SCREEN_HEIGHT - menuHeight) / 2.0f;
 
+    ClearBackground({12, 28, 18, 255});
+    /*
     Rectangle menuContainer = {
         menuX,
         menuY,
@@ -312,9 +314,9 @@ void drawMenu()
         menuHeight,
     };
 
-    ClearBackground({12, 28, 18, 255});
-    // Color menuPanelColor = {58, 74, 46, 255};
-    // DrawRectangleRec(menuContainer, menuPanelColor);
+    Color menuPanelColor = {58, 74, 46, 255};
+    DrawRectangleRec(menuContainer, menuPanelColor);
+    */
 
     // Init Buttons
     const float buttondWidth = menuWidth - 120.0f;
