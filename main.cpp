@@ -34,6 +34,7 @@ char key;
 Sound hoverSound;
 Sound clickSound;
 Sound gameOver;
+Sound eat;
 std::string lastHovered = "";
 
 Vector2 dir = {1, 0};
@@ -43,7 +44,7 @@ float moveInterval = 0.10f;
 unsigned int score = 0;
 Vector4 pos = {SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, RECT_WIDTH, RECT_HEIGHT};
 
-deque<Rectangle> rects = {
+deque<Rectangle> snakeRects = {
     {pos.x, pos.y, pos.z, pos.w},
     {pos.x - pos.z, pos.y, pos.z, pos.w},
     {pos.x - 2 * pos.z, pos.y, pos.z, pos.w},
@@ -53,7 +54,7 @@ deque<Rectangle> rects = {
     {pos.x - 6 * pos.z, pos.y, pos.z, pos.w},
     {pos.x - 7 * pos.z, pos.y, pos.z, pos.w},
 };
-deque<Rectangle> initialRects = rects;
+deque<Rectangle> initialSnakeRects = snakeRects;
 
 struct Button
 {
@@ -67,7 +68,7 @@ struct Button
 
     bool isHovered() const
     {
-        return CheckCollisionPointRec(GetMousePosition(), bounds); // why CheckCollisionPointRec not CheckCollisionRecs?
+        return CheckCollisionPointRec(GetMousePosition(), bounds);
     }
 
     bool isClicked() const
@@ -77,7 +78,7 @@ struct Button
 
     void render() const
     {
-        Color currentColor = isHovered() ? hoverCOlor : fillColor; // what's the purpose of putting const after the function name?
+        Color currentColor = isHovered() ? hoverCOlor : fillColor;
         DrawRectangleRec(bounds, currentColor);
 
         int textWidth = MeasureText(label.c_str(), fontSize);
@@ -105,6 +106,7 @@ int main()
     hoverSound = LoadSound("assets/hover2.mp3");
     clickSound = LoadSound("assets/hover4.mp3");
     gameOver = LoadSound("assets/gameOverKid.mp3");
+    eat = LoadSound("assets/eating.wav");
 
     SetExitKey(KEY_NULL);
     SetTargetFPS(60);
@@ -180,21 +182,21 @@ void renderSnake()
     Color snakeBodyB = {103, 118, 68, 255};
     Color snakeOutline = {42, 50, 29, 255};
 
-    DrawRectangleRec(rects[0], snakeHead);
-    DrawRectangleLinesEx(rects[0], 2, snakeOutline);
-    for (int i = 1; i < rects.size(); i++)
+    DrawRectangleRec(snakeRects[0], snakeHead);
+    DrawRectangleLinesEx(snakeRects[0], 2, snakeOutline);
+    for (int i = 1; i < snakeRects.size(); i++)
     {
         Color bodyColor = (i % 2) == 0 ? snakeBodyA : snakeBodyB;
-        DrawRectangleRec(rects[i], bodyColor);
-        DrawRectangleLinesEx(rects[i], 1.5f, snakeOutline);
+        DrawRectangleRec(snakeRects[i], bodyColor);
+        DrawRectangleLinesEx(snakeRects[i], 1.5f, snakeOutline);
     }
 }
 bool hitsBoundary()
 {
 
-    if (rects[0].y < 1 || rects[0].x < 0 ||
-        rects[0].x >= SCREEN_WIDTH - RECT_WIDTH ||
-        rects[0].y >= SCREEN_HEIGHT - RECT_HEIGHT)
+    if (snakeRects[0].y < 1 || snakeRects[0].x < 0 ||
+        snakeRects[0].x >= SCREEN_WIDTH - RECT_WIDTH ||
+        snakeRects[0].y >= SCREEN_HEIGHT - RECT_HEIGHT)
     {
         state = State::GAMEOVER;
         PlaySound(gameOver);
@@ -206,14 +208,29 @@ bool hitsBoundary()
 
 void randomPoints()
 {
-    float rect_x = GetRandomValue(0, SCREEN_WIDTH - RECT_WIDTH);
-    float rect_y = GetRandomValue(0, SCREEN_HEIGHT - RECT_HEIGHT);
-    point = {rect_x, rect_y, RECT_WIDTH, RECT_HEIGHT};
+    bool pointCollidedWithSnake = true;
+
+    while (pointCollidedWithSnake)
+    {
+        float rect_x = GetRandomValue(0, SCREEN_WIDTH - RECT_WIDTH);
+        float rect_y = GetRandomValue(0, SCREEN_HEIGHT - RECT_HEIGHT);
+        point = {rect_x, rect_y, RECT_WIDTH, RECT_HEIGHT};
+        pointCollidedWithSnake = false;
+
+        for (const Rectangle &rect : snakeRects)
+        {
+            if (CheckCollisionRecs(point, rect))
+            {
+                pointCollidedWithSnake = true;
+                break;
+            }
+        }
+    }
 }
 
 void move()
 {
-    Rectangle newHead = rects.front();
+    Rectangle newHead = snakeRects.front();
     newHead.x += dir.x * RECT_WIDTH;
     newHead.y += dir.y * RECT_HEIGHT;
 
@@ -226,12 +243,13 @@ void move()
         return;
     }
 
-    rects.push_front(newHead);
+    snakeRects.push_front(newHead);
 
     if (!willGrow)
-        rects.pop_back();
+        snakeRects.pop_back();
     else
     {
+        PlaySound(eat);
         score += 10;
         randomPoints();
     }
@@ -247,12 +265,12 @@ void showScore()
 
 bool hitSelf(const Rectangle &newHead, bool willGrow)
 {
-    int limit = rects.size();
+    int limit = snakeRects.size();
     if (limit > 0 && !willGrow)
         limit -= 1;
     for (int i = 0; i < limit; i++)
     {
-        if (CheckCollisionRecs(newHead, rects[i]))
+        if (CheckCollisionRecs(newHead, snakeRects[i]))
             return true;
     }
     return false;
@@ -365,7 +383,7 @@ void drawMenu()
 }
 void reset()
 {
-    rects = initialRects;
+    snakeRects = initialSnakeRects;
     score = 0;
     dir = {1, 0};
     nextDir = {1, 0};
@@ -378,8 +396,12 @@ void reset()
 
 /*
 TODO:
-    1. Snake & Points Overlaps
-    2.Snake & Points Overlaps with Score
-    3.Pause/End/Start Screen.
+    2. When snake cover whole Window what happens to the randomPoints()??
+*/
 
+/*
+Completed:
+    1. Snake & Points Overlaps
+    2.Pause/End/Start Screen.
+    3.Add Sound
 */
