@@ -8,10 +8,12 @@
 using namespace std;
 
 #define SCREEN_WIDTH 1200
-#define SCREEN_HEIGHT 800
+#define SCREEN_HEIGHT 780
 #define RECT_WIDTH 30
 #define RECT_HEIGHT 30
 #define FONT_SIZE 30
+const int GRID_COLS = SCREEN_WIDTH / RECT_WIDTH;
+const int GRID_ROWS = SCREEN_HEIGHT / RECT_HEIGHT;
 
 enum class State
 {
@@ -27,6 +29,8 @@ enum class State
 State state = State::START;
 bool isPointExists = false;
 Rectangle point;
+Color food = {232, 116, 81, 255};
+
 float vx = 5;
 float vy = 5;
 char key;
@@ -42,17 +46,14 @@ Vector2 nextDir = {1, 0};
 float moveTimer = 0.0f;
 float moveInterval = 0.10f;
 unsigned int score = 0;
-Vector4 pos = {SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, RECT_WIDTH, RECT_HEIGHT};
+Vector4 pos = {(float)(GRID_COLS / 2) * RECT_WIDTH,
+               (float)(GRID_ROWS / 2) * RECT_HEIGHT,
+               (float)RECT_WIDTH,
+               (float)RECT_HEIGHT};
 
 deque<Rectangle> snakeRects = {
     {pos.x, pos.y, pos.z, pos.w},
-    {pos.x - pos.z, pos.y, pos.z, pos.w},
-    {pos.x - 2 * pos.z, pos.y, pos.z, pos.w},
-    {pos.x - 3 * pos.z, pos.y, pos.z, pos.w},
-    {pos.x - 4 * pos.z, pos.y, pos.z, pos.w},
-    {pos.x - 5 * pos.z, pos.y, pos.z, pos.w},
-    {pos.x - 6 * pos.z, pos.y, pos.z, pos.w},
-    {pos.x - 7 * pos.z, pos.y, pos.z, pos.w},
+
 };
 deque<Rectangle> initialSnakeRects = snakeRects;
 
@@ -161,7 +162,7 @@ int main()
             drawBoardBackground();
             showScore();
             renderSnake();
-            DrawRectangleRec(point, RED);
+            DrawRectangleRec(point, food);
         }
 
         EndDrawing();
@@ -177,10 +178,10 @@ int main()
 // Definitions
 void renderSnake()
 {
-    Color snakeHead = {92, 108, 63, 255};
-    Color snakeBodyA = {117, 132, 76, 255};
-    Color snakeBodyB = {103, 118, 68, 255};
-    Color snakeOutline = {42, 50, 29, 255};
+    Color snakeHead = {170, 196, 200, 255};
+    Color snakeBodyA = {126, 156, 162, 255};
+    Color snakeBodyB = {108, 138, 146, 255};
+    Color snakeOutline = {44, 60, 66, 255};
 
     DrawRectangleRec(snakeRects[0], snakeHead);
     DrawRectangleLinesEx(snakeRects[0], 2, snakeOutline);
@@ -194,9 +195,9 @@ void renderSnake()
 bool hitsBoundary()
 {
 
-    if (snakeRects[0].y < 1 || snakeRects[0].x < 0 ||
-        snakeRects[0].x >= SCREEN_WIDTH - RECT_WIDTH ||
-        snakeRects[0].y >= SCREEN_HEIGHT - RECT_HEIGHT)
+    if (snakeRects[0].y < 0 || snakeRects[0].x < 0 ||
+        snakeRects[0].x > SCREEN_WIDTH - RECT_WIDTH ||
+        snakeRects[0].y > SCREEN_HEIGHT - RECT_HEIGHT)
     {
         state = State::GAMEOVER;
         PlaySound(gameOver);
@@ -212,9 +213,9 @@ void randomPoints()
 
     while (pointCollidedWithSnake)
     {
-        float rect_x = GetRandomValue(0, SCREEN_WIDTH - RECT_WIDTH);
-        float rect_y = GetRandomValue(0, SCREEN_HEIGHT - RECT_HEIGHT);
-        point = {rect_x, rect_y, RECT_WIDTH, RECT_HEIGHT};
+        int col = GetRandomValue(0, GRID_COLS - 1);
+        int row = GetRandomValue(0, GRID_ROWS - 1);
+        point = {(float)(col * RECT_WIDTH), (float)(row * RECT_HEIGHT), (float)RECT_WIDTH, (float)RECT_HEIGHT};
         pointCollidedWithSnake = false;
 
         for (const Rectangle &rect : snakeRects)
@@ -278,10 +279,11 @@ bool hitSelf(const Rectangle &newHead, bool willGrow)
 
 void drawBoardBackground()
 {
-    Color darkGrass = {18, 48, 24, 255};
-    Color lightGrass = {28, 68, 34, 255};
-    Color gridLine = {40, 90, 46, 120};
-    ClearBackground(darkGrass);
+    Color darkGrass = {18, 34, 38, 255};
+    Color lightGrass = {28, 52, 58, 255};
+    Color gridLine = {62, 96, 102, 110};
+    ClearBackground({16, 30, 32, 255});
+
     for (int y = 0; y < SCREEN_HEIGHT; y += RECT_HEIGHT)
     {
         for (int x = 0; x < SCREEN_WIDTH; x += RECT_WIDTH)
@@ -396,7 +398,7 @@ void reset()
 
 /*
 TODO:
-    2. When snake cover whole Window what happens to the randomPoints()??
+    1. When snake cover whole Window what happens to the randomPoints()??
 */
 
 /*
@@ -404,4 +406,5 @@ Completed:
     1. Snake & Points Overlaps
     2.Pause/End/Start Screen.
     3.Add Sound
+    4.Grid based movement
 */
